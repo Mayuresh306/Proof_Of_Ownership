@@ -1,0 +1,20 @@
+{
+  "name": "web3",
+  "version": "4.16.0",
+  "description": "for blockchain purpose",
+  "repository": {
+    "type": "git",
+    "url": "Simple_Blockchain"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "sha.js": "^2.4.11"
+  }
+}
