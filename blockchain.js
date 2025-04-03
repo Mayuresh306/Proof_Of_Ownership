@@ -64,7 +64,7 @@ class Blockchain {
             timestamp,
             transactions,
             nonce : generateHash.nonce,
-            difficulty : 10,
+            difficulty : 4,
             hash : generateHash.hash,
             previousHash,
         };
