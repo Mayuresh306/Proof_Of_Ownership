@@ -1,7 +1,7 @@
 const {ethers} = require("hardhat");
 
 async function main() {
-    const ProofOfOwnership = await ethers.getContractfactory("ProofOfOwnership");
+    const ProofOfOwnership = await ethers.getContractFactory("ProofOfOwnership");
     const contract = await ProofOfOwnership.deploy();
     await contract.waitForDeployment();
     console.log("Contract Deployed Successfully to " , contract.target);
