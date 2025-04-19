@@ -28,7 +28,7 @@ function App() {
       {filehash && (
         <>
         <p><strong>File:</strong> {filename}</p>
-        <p><strong>SHA-256 Hash:</strong> {filehash}</p>
+        <p><strong>Hash:</strong> {filehash}</p>
         </>
       )}
     </div>
