@@ -1,7 +1,9 @@
 import React , { useState } from 'react';
 import {ethers} from 'ethers';
 import './App.css';
-import crypto from 'crypto-browserify'  //for sha256 hashing in browser
+import crypto, { constants } from 'crypto-browserify'  //for sha256 hashing in browser
+import { Buffer } from 'buffer';
+window.Buffer = Buffer;
 
 function App() {
   const [filehash , setfilehash] = useState('');
@@ -15,8 +17,11 @@ function App() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const buffer = event.target.result;
-      const hash = crypto.createHash('sha256').update(new Uint8Array(buffer)).digest('hex');
-      setfilehash(hash);
+      const hashBuffer = await window.crypto.subtle.digest('SHA-256' , buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart
+    (2 , '0')).join('');
+      setfilehash(hashHex);
     };
     reader.readAsArrayBuffer(file);
   };
