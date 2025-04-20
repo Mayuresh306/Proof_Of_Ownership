@@ -4,6 +4,7 @@ import './App.css';
 import crypto, { constants } from 'crypto-browserify'  //for sha256 hashing in browser
 import { Buffer } from 'buffer';
 window.Buffer = Buffer;
+import WalletConnect from './walletconnect';
 
 function App() {
   const [filehash , setfilehash] = useState('');
@@ -39,5 +40,15 @@ function App() {
     </div>
   );
 }
+
+const [walletAddress , setWalletaddress] = useState("");
+
+return (
+  <div className='App'>
+    <h1>DocChain</h1>
+    <WalletConnect setWalletaddress={setWalletaddress}/>
+    <p><strong>Wallet:</strong>{walletAddress}</p>
+  </div>
+);
 
 export default App;
