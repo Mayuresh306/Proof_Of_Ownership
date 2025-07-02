@@ -1,5 +1,8 @@
 import { useState , useEffect} from 'react';
 import { ethers } from 'ethers';
+import contractABI from "./abis/ProofOfOwnership.json";
+
+const contractAddress = "0xaA41a5940B8AA529a7648e4AB77EB9bAA297a023";
 
 function WalletConnect({ setWalletaddress}) {
     const [isConnected , setIsConnected] = useState(false);

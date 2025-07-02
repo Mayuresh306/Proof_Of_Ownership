@@ -3,11 +3,11 @@ const{ ethers } = require("ethers");
 const fs = require("fs");
 const path = require("path");
 
-//load ABI
-const contractJSON = require("./artifacts/contracts/Proof_of_Ownership.sol/ProofOfOwnership.json");
+//load ABI"
+const contractJSON = require("./abis/ProofOfOwnership.json");
 
 //load provider and signer
-const provider = new ethers.JsonRpcProvider(process.env.LOCAL_RPC);
+const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC);
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY , provider);
 
 //load contract

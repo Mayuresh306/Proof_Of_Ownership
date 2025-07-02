@@ -2,9 +2,12 @@ import React , { useState } from 'react';
 import {ethers} from 'ethers';
 import './App.css';
 import crypto, { constants } from 'crypto-browserify'  //for sha256 hashing in browser
-import { Buffer } from 'buffer';
-window.Buffer = Buffer;
 import WalletConnect from './walletconnect';
+import { Buffer } from 'buffer';
+import process from 'process';
+
+window.Buffer = Buffer;
+window.process = process;
 
 function App() {
   const [filehash , setfilehash] = useState('');
@@ -27,6 +30,8 @@ function App() {
     reader.readAsArrayBuffer(file);
   };
 
+  const [walletAddress , setWalletaddress] = useState("");
+
   return (
     <div className='App'>
       <h1>DocChain</h1>
@@ -40,15 +45,5 @@ function App() {
     </div>
   );
 }
-
-const [walletAddress , setWalletaddress] = useState("");
-
-return (
-  <div className='App'>
-    <h1>DocChain</h1>
-    <WalletConnect setWalletaddress={setWalletaddress}/>
-    <p><strong>Wallet:</strong>{walletAddress}</p>
-  </div>
-);
 
 export default App;
