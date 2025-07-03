@@ -16,6 +16,28 @@ function App() {
   const [contract , setContract] = useState("");
   const [filehash , setfilehash] = useState('');
   const [filename , setfilename] = useState('');
+  const [documents , setDocuments ] = useState([]);
+
+  const fetchAllDocuments = async () => {
+  try {
+    const hashes = await contract.getDocument_hashes(); // Call the getter
+    const documentData = await Promise.all(
+      hashes.map(async (hash) => {
+        const doc = await contract.VerifyDocument(hash);
+        return {
+          hash,
+          owner: doc[0],
+          timestamp: new Date(Number(doc[1]) * 1000).toLocaleString(),
+        };
+      })
+    );
+    return documentData;
+  } catch (error) {
+    console.error("Failed to fetch documents:", error);
+    return [];
+  }
+};
+
 
     // Connect Wallet
   const connectWallet = async () => {
@@ -32,7 +54,17 @@ function App() {
           signer
         );
         setContract(contractInstance);
-
+        const hashes = await contract.getDocument_hashes();
+        const docDetails = await Promise.all(
+        hashes.map(async (hash) => {
+          const doc = await contract.VerifyDocument(hash);
+          return {
+            hash,
+            owner: doc[0],
+            timestamp: new Date(Number(doc[1]) * 1000).toLocaleString(),
+          };
+        }));
+        setDocuments(docDetails);
         alert("Wallet connected successfully!");
       } catch (err) {
         alert("Wallet connection failed: " + err.message);
@@ -109,6 +141,17 @@ function App() {
       <>
         <p><strong>Wallet: </strong>  {!walletAddress ? "Not Connected" : walletAddress} </p>
         </>
+
+        <h2>Registered Documents</h2>
+      <ul>
+        {documents.map((doc, index) => (
+          <li key={index}>
+            <strong>Hash:</strong> {doc.hash} <br />
+            <strong>Owner:</strong> {doc.owner} <br />
+            <strong>Timestamp:</strong> {doc.timestamp}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

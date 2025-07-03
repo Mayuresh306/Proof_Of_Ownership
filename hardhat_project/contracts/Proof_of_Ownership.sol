@@ -9,6 +9,7 @@ contract ProofOfOwnership {
     }
 
     mapping(string => Document) private documents;
+    string[] public DocumentHashes;
 
     event RegisteredDocument(string hash , address owner , uint timestamp);
 
@@ -19,6 +20,7 @@ contract ProofOfOwnership {
             owner: msg.sender,
             timestamp: block.timestamp
         });
+        DocumentHashes.push(_hash);
 
         emit RegisteredDocument(_hash , msg.sender , block.timestamp);
     }
@@ -29,6 +31,10 @@ contract ProofOfOwnership {
 
         Document memory doc = documents[_hash];
         return (doc.owner , doc.timestamp);
+    }
+
+    function getDocument_hashes() public view returns(string[] memory) {
+        return DocumentHashes;
     }
 }
 
