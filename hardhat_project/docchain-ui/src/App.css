@@ -1,11 +1,9 @@
 .App {
   text-align:center;
-  background-color: rgb(86, 200, 10);
-  color: rgb(20, 9, 180);
-  
-  
+  background-color: rgb(255, 255, 255);
+  color: rgb(0, 0, 0);
 }
-
+/* 
 .App-logo {
   height: 40vmin;
   pointer-events: none;
@@ -39,4 +37,4 @@
   to {
     transform: rotate(360deg);
   }
-}
+} */

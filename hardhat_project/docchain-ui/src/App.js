@@ -9,14 +9,14 @@ import contractABI from './abis/ProofOfOwnership.json';
 window.Buffer = Buffer;
 window.process = process;
 
-const contractAddress = "0xaA41a5940B8AA529a7648e4AB77EB9bAA297a023";
+const contractAddress = "0x266eefF589A3Eb2ccac669171BCc62CB8F0A756b";
 
 function App() {
   const [walletAddress , setWalletaddress] = useState("");
   const [contract , setContract] = useState("");
   const [filehash , setfilehash] = useState('');
   const [filename , setfilename] = useState('');
-  const [documents , setDocuments ] = useState([]);
+  const [document , setDocuments ] = useState([]);
 
   const fetchAllDocuments = async () => {
   try {
@@ -31,10 +31,10 @@ function App() {
         };
       })
     );
-    return documentData;
+    setDocuments(documentData);
   } catch (error) {
     console.error("Failed to fetch documents:", error);
-    return [];
+    setDocuments([]);
   }
 };
 
@@ -54,17 +54,6 @@ function App() {
           signer
         );
         setContract(contractInstance);
-        const hashes = await contract.getDocument_hashes();
-        const docDetails = await Promise.all(
-        hashes.map(async (hash) => {
-          const doc = await contract.VerifyDocument(hash);
-          return {
-            hash,
-            owner: doc[0],
-            timestamp: new Date(Number(doc[1]) * 1000).toLocaleString(),
-          };
-        }));
-        setDocuments(docDetails);
         alert("Wallet connected successfully!");
       } catch (err) {
         alert("Wallet connection failed: " + err.message);
@@ -118,7 +107,6 @@ function App() {
     }
   };
 
-
   return (
     <div className='App'>
       <h1>Proof Of Ownership</h1>
@@ -135,25 +123,32 @@ function App() {
       {filehash && (
         <>
         <p><strong>File:</strong> {filename}</p>
-        <p><strong>Hash:</strong> {filehash}</p>
+        <p><strong>File Hash:</strong> {filehash}</p>
         </>
       )}
       <>
-        <p><strong>Wallet: </strong>  {!walletAddress ? "Not Connected" : walletAddress} </p>
+        <p><strong>Wallet Address: </strong>  {!walletAddress ? "Not Connected" : walletAddress} </p>
         </>
 
         <h2>Registered Documents</h2>
+        <button onClick={fetchAllDocuments}>Show Documents</button>
       <ul>
-        {documents.map((doc, index) => (
+           {document.map((doc, index) => (
           <li key={index}>
             <strong>Hash:</strong> {doc.hash} <br />
             <strong>Owner:</strong> {doc.owner} <br />
             <strong>Timestamp:</strong> {doc.timestamp}
+            <button onClick={() => downloadDocument(doc.hash)}>Download</button>
           </li>
         ))}
       </ul>
     </div>
   );
 }
+// // download functionality
+// const downloadDocument = (hash) => {
+//   alert(`Download triggered for hash: ${hash}`);
+// };
+
 
 export default App;
