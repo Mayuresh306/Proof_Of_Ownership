@@ -1,41 +1,39 @@
-import { useState , useEffect} from 'react';
-import { ethers } from 'ethers';
+import { useEffect, useState } from "react";
+import { ethers } from "ethers";
 import contractABI from "./abis/ProofOfOwnership.json";
 
 const contractAddress = "0xaA41a5940B8AA529a7648e4AB77EB9bAA297a023";
 
-function WalletConnect({ setWalletaddress}) {
-    const [isConnected , setIsConnected] = useState(false);
-    useEffect(() => {
-        if(window.ethereum) {
-            window.ethereum.on("AccountsChanged" , handleAccountsChanged);
-        }
-    } , []);
-    const handleAccountsChanged = (accounts) => {
-        if(accounts.length > 0) {
-            setWalletaddress(accounts[0]);
-                setIsConnected(true);
-        }else {
-            setIsConnected(false);
-        }
-    };
+function WalletConnect() {
+  const [account, setAccount] = useState(null);
+  const [contract, setContract] = useState(null);
 
-    const connectWallet = async () => {
-        if (window.ethereum) {
-            const accounts = await window.ethereum.request({method:'eth_requestAccounts'});
+  const connectWallet = async () => {
+    if (window.ethereum) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      setAccount(address);
 
-            handleAccountsChanged(accounts);
-        } else {
-            alert ("Please install Metamask");
-        }
-    };
+      const contractInstance = new ethers.Contract(
+        contractAddress,
+        contractABI.abi,
+        signer
+      );
+      setContract(contractInstance);
+      alert("Wallet connected");
+    } else {
+      alert("Please install MetaMask!");
+    }
+  };
 
-    return (
-        <div>
-            <button onClick={connectWallet}>{isConnected ? "Wallet Connected" : "Connect Wallet"}
-            </button>
-        </div>
-    );
+  return (
+    <div>
+      <button onClick={connectWallet}>
+        {account ? `Connected: ${account}` : "Connect Wallet"}
+      </button>
+    </div>
+  );
 }
 
 export default WalletConnect;
