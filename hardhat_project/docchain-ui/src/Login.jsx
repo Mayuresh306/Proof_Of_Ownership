@@ -6,15 +6,6 @@ const Login = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [showPassword , setShowPassword] = useState(false);
 
-  // const connectWallet = async () => {
-  //   if (window.ethereum) {
-  //     const [account] = await window.ethereum.request({ method: 'eth_requestAccounts' });
-  //     setWalletAddress(account);
-  //   } else {
-  //     alert("MetaMask not found!");
-  //   }
-  // };
-
  const handleSubmit = () => {
   if (!Username || !password) {
     alert("Username and wallet are required.");

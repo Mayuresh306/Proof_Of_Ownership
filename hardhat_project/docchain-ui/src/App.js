@@ -6,11 +6,12 @@ import { Buffer } from 'buffer';
 import process from 'process';
 import contractABI from './abis/ProofOfOwnership.json';
 import Login from './Login';
+import { uploadToIPFS } from './utils/uploadToipfs.js';
 
 window.Buffer = Buffer;
 window.process = process;
 
-const contractAddress = "0x266eefF589A3Eb2ccac669171BCc62CB8F0A756b";
+const contractAddress = "0x7Decca95a85DA4F9E2ECF181cf138fd03113aDE3";
 
 function App() {
   const [walletAddress , setWalletaddress] = useState("");
@@ -21,6 +22,10 @@ function App() {
   const [uploadedfiles , setUploadedFiles] = useState({});
   const [darkMode , setDarkMode] = useState(false);
   const [user, setUser] = useState(null);
+  const [Selectedfile , setSelectedFile] = useState(null);
+  const [IpfsUrl , setIpfsUrl] = useState(null);
+  const [registeredDocs, setRegisteredDocs] = useState([]);
+
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -41,11 +46,12 @@ function App() {
     const hashes = await contract.getDocument_hashes(); // Call the getter
     const documentData = await Promise.all(
       hashes.map(async (hash) => {
-        const doc = await contract.VerifyDocument(hash);
+        const [owner , timestamp , ipfsHash] = await contract.VerifyDocument(hash);
         return {
           hash,
-          owner: doc[0],
-          timestamp: new Date(Number(doc[1]) * 1000).toLocaleString(),
+          owner,
+          timestamp : new Date(Number(timestamp) * 1000).toLocaleString(),
+          ipfsHash,
         };
       })
     );
@@ -82,24 +88,30 @@ function App() {
     }
   };
 
+  // wallet disconnects
+  const disconnectWallet = () => {
+    setWalletaddress("");  // Clear address
+    setContract("");       // Clear contract instance
+    alert("🔌 Wallet disconnected");
+};
+
+
     // file to hash
   const handlefilechange = async (e) => {
-    const selectedfile  = e.target.files[0];
-    if(!selectedfile) return;
-    setfilename(selectedfile.name);
+    const file  = e.target.files[0];
+    setSelectedFile(file);
+    if(!file) return;
+    setfilename(file.name);
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = async function (event) {
       const buffer = event.target.result;
-      const hashBuffer = await window.crypto.subtle.digest('SHA-256' , buffer);
+      const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart
-    (2 , '0')).join('');
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       setfilehash(hashHex);
-      const blobUrl = URL.createObjectURL(selectedfile);
-      setUploadedFiles((prev) => ({ ...prev, [hashHex]: { file: selectedfile, url: blobUrl } }));
     };
-    reader.readAsArrayBuffer(selectedfile);
+    reader.readAsArrayBuffer(file);
     };
 
   // smart contract functions interaction
@@ -107,13 +119,36 @@ function App() {
   const registerDocument = async () => {
     if (!filehash) return alert("select a file first!");
     if (!contract) return alert("Connect wallet First!");
+    if (!Selectedfile) return alert("No file selected!");
+
+    const confirm = window.confirm(
+    "⚠️⚠️ NOTE ⚠️⚠️\nAre you sure you want to register this document?\nThis will upload the file to IPFS and record it on the blockchain. You cannot undo this."
+    );
+
+    if (!confirm) return; // Stop if user cancels
     try {
-      const tx = await contract.DocumentRegister(filehash);
+      const ipfsHash = await uploadToIPFS(Selectedfile);
+      setIpfsUrl(ipfsHash);
+
+      const tx = await contract.DocumentRegister(filehash , ipfsHash);
       await tx.wait();
-      alert("✅ Document Registered!");
+      alert("✅ Document Registered Successfully!");
+
+      setDocuments((prev) => [
+      ...prev,
+      {
+        hash: filehash,
+        owner: walletAddress,
+        timestamp: new Date().toLocaleString(),
+        ipfsUrl : ipfsHash,
+      },
+    ]);
+      setfilehash("");
+      setfilename("");
+      setSelectedFile(null);
       fetchAllDocuments(contract);
     } catch (err) {
-      alert("❌ Error: " + (err.reason || err.message));
+      alert("❌ Error!!: " + (err.reason || err.message));
     }
   };
 
@@ -147,13 +182,14 @@ function App() {
       </button>
        <div className="ms-auto d-flex align-items-center">
     {user && (
-      <span className="text-white me-3">
+      <span className=" me-2"
+      style={{
+    color: darkMode ? '#fff' : '#000'}}>
         👋Hello, <strong>{user.Username}</strong>
       </span>
     )}</div> 
       {user && (
   <button onClick={handleLogout} className="btn btn-sm btn-outline-danger rounded-pill">
-
     Logout
   </button>
 )}
@@ -170,15 +206,22 @@ function App() {
 
   {/* Connect Wallet */}
     <div className={"fw-bold text-center mb-4"}>
-      <button onClick={connectWallet} className={"btn px-4 py-2 rounded-pill fw-bold shadow-sm ${darkMode ? 'btn-outline-dark'}"}
-      style={{
-    color: darkMode ? '#fff' : '#000',
-    border: '1px solid',
-    borderColor: darkMode ? '#fff' : '#000',
-    backgroundColor: darkMode ? 'transparent' : 'transparent',
-  }}>
-        {walletAddress ? `✅ Connected: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '🔌 Connect Wallet'}
-      </button>
+   {walletAddress ? (
+  <>
+    <button className="btn btn-sm btn-outline-danger rounded-pill me-2" onClick={disconnectWallet}>
+      🔌 Disconnect
+    </button>
+    <span style={{ color: darkMode ? '#fff' : '#000' }}>
+      ✅ Connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+    </span>
+  </>
+) : (
+  <button
+    className="btn btn-sm btn-outline-primary rounded-pill"
+    onClick={connectWallet}>
+    🔗 Connect Wallet
+    </button>
+)}
     </div>  
 
     {/* Upload Section */}
@@ -242,49 +285,36 @@ function App() {
           Show Documents
         </button>
       </div>
-
-      <ul className="list-group">
-        {documents?.length > 0 &&
-          documents.map((doc, index) => (
-            <li key={index} className="list-group-item"
-            style={{
-        color: darkMode ? '#fff' : '#000',
-        border: '1px solid',
-        borderColor: darkMode ? '#fff' : '#000',
-        backgroundColor: darkMode ? 'transparent' : 'transparent'}}>
-              <p><strong>Hash:</strong> {doc.hash}</p>
-              <p><strong>Owner:</strong> {doc.owner}</p>
-              <p><strong>Timestamp:</strong> {doc.timestamp}</p>
-              <button
-                className="btn btn-sm btn-outline-secondary rounded-pill"
-                onClick={() => documents[doc.hash]?.blobUrl}
-              >
-                Download
-              </button>
-              {/* Uncomment below if using uploadedfiles */}
-              {/*
-              {uploadedfiles[doc.hash] && (
-                <a
-                  href={uploadedfiles[doc.hash].url}
-                  download={uploadedfiles[doc.hash].file.name}
-                  className="btn btn-sm btn-link"
-                >
-                  ⬇️ Download File
-                </a>
-              )}
-              */}
-            </li>
-          ))}
-      </ul>
-    </div>
+    <ul className="list-group">
+  {documents?.length > 0 &&
+    documents.map((doc, index) => (
+      <li key={index} className="list-group-item"
+      style={{
+    color: darkMode ? '#fff' : '#000',
+    border: '1px solid',
+    borderColor: darkMode ? '#fff' : '#000',
+    backgroundColor: darkMode ? 'transparent' : 'transparent',
+  }}>
+        <p><strong>Hash:</strong> {doc.hash}</p>
+        <p><strong>Owner:</strong> {doc.owner}</p>
+        <p><strong>Timestamp:</strong> {doc.timestamp}</p>
+        {doc.ipfsHash && (
+          <a
+            href={doc.ipfsHash}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-success rounded-pill"
+            download
+          >
+            📥 Download File
+          </a>
+        )}
+      </li>
+    ))}
+</ul>
+  </div>
   </div>
 );
-
 }
-// // download functionality (optional)
-// const downloadDocument = (hash) => {
-//   alert(`Download triggered for hash: ${hash}`);
-// };
-
 
 export default App;
