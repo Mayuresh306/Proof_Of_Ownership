@@ -7,6 +7,8 @@ import process from 'process';
 import contractABI from './abis/ProofOfOwnership.json';
 import Login from './Login';
 import { uploadToIPFS } from './utils/uploadToipfs.js';
+import { Analytics } from '@vercel/analytics/react';
+
 
 window.Buffer = Buffer;
 window.process = process;
@@ -317,18 +319,19 @@ function App() {
       </li>
     ))
   ) : (
-    <li className="list-group-item text-center"
+    <li className="list-group-item text-center rounded pill"
       style={{
         color: darkMode ? '#fff' : '#000',
         backgroundColor: darkMode ? 'transparent' : 'transparent',
         borderColor: darkMode ? '#fff' : '#000',
       }}>
-      No documents found for this wallet 😔
+      No documents found 😔
     </li>
   )}
 </ul>
 
   </div>
+  <Analytics />
   </div>
 );
 }
