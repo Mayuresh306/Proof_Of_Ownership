@@ -55,7 +55,12 @@ function App() {
         };
       })
     );
-    setDocuments(documentData);
+
+    // Filter documents belonging to the connected wallet
+    const userDocs = documentData.filter(
+      (doc) => doc.owner.toLowerCase() === walletAddress.toLowerCase()
+    );
+    setDocuments(userDocs);
   } catch (error) {
     console.error("Failed to fetch documents:", error);
     setDocuments([]);
@@ -286,15 +291,15 @@ function App() {
         </button>
       </div>
     <ul className="list-group">
-  {documents?.length > 0 &&
+  {documents?.length > 0 ? (
     documents.map((doc, index) => (
       <li key={index} className="list-group-item"
-      style={{
-    color: darkMode ? '#fff' : '#000',
-    border: '1px solid',
-    borderColor: darkMode ? '#fff' : '#000',
-    backgroundColor: darkMode ? 'transparent' : 'transparent',
-  }}>
+        style={{
+          color: darkMode ? '#fff' : '#000',
+          border: '1px solid',
+          borderColor: darkMode ? '#fff' : '#000',
+          backgroundColor: darkMode ? 'transparent' : 'transparent',
+        }}>
         <p><strong>Hash:</strong> {doc.hash}</p>
         <p><strong>Owner:</strong> {doc.owner}</p>
         <p><strong>Timestamp:</strong> {doc.timestamp}</p>
@@ -310,8 +315,19 @@ function App() {
           </a>
         )}
       </li>
-    ))}
+    ))
+  ) : (
+    <li className="list-group-item text-center"
+      style={{
+        color: darkMode ? '#fff' : '#000',
+        backgroundColor: darkMode ? 'transparent' : 'transparent',
+        borderColor: darkMode ? '#fff' : '#000',
+      }}>
+      No documents found for this wallet 😔
+    </li>
+  )}
 </ul>
+
   </div>
   </div>
 );
