@@ -143,8 +143,8 @@ function App() {
         ipfsUrl : ipfsHash,
       },
     ]);
-      setfilehash("");
-      setfilename("");
+      // setfilehash("");
+      // setfilename("");
       setSelectedFile(null);
       fetchAllDocuments(contract);
     } catch (err) {
