@@ -8,7 +8,8 @@ import contractABI from './abis/ProofOfOwnership.json';
 import Login from './Login';
 import { uploadToIPFS } from './utils/uploadToipfs.js';
 import { Analytics } from '@vercel/analytics/react';
-
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 window.Buffer = Buffer;
 window.process = process;
@@ -27,6 +28,7 @@ function App() {
   const [Selectedfile , setSelectedFile] = useState(null);
   const [IpfsUrl , setIpfsUrl] = useState(null);
   const [registeredDocs, setRegisteredDocs] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
 
   useEffect(() => {
@@ -43,6 +45,53 @@ function App() {
     document.body.className = darkMode ? 'bg-dark text-light' : 'bg-light text-dark';
   }, [darkMode]);
 
+  const downloadReport = async () => {
+    const pdf = new jsPDF();
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    let y = 20;
+
+     // Title
+  pdf.setFontSize(18);
+  pdf.text(" Proof of Ownership Report", 10, y);
+  y += 10;
+
+  // Date
+  pdf.setFontSize(10);
+  pdf.text(`Generated on: ${new Date().toLocaleString()}`, 10, y);
+  y += 10;
+
+  // Divider
+  pdf.setLineWidth(0.5);
+  pdf.line(10, y, pdfWidth - 10, y);
+  y += 10;
+
+  // Document List
+  pdf.setFontSize(12);
+
+  documents.forEach((doc, index) => {
+    if (y > 270) {
+      pdf.addPage();
+      y = 20;
+    }
+
+    pdf.text(`Document ${index + 1}:`, 10, y);
+    y += 7;
+    pdf.text(`Hash: ${doc.hash}`, 15, y);
+    y += 7;
+    pdf.text(`Owner: ${doc.owner}`, 15, y);
+    y += 7;
+    pdf.text(`Timestamp: ${doc.timestamp}`, 15, y);
+    y += 10;
+  });
+
+  // Footer
+  pdf.setFontSize(10);
+  pdf.text("© 2025 Proof of Ownership DApp", 10, 290);
+
+  pdf.save("ownership_report.pdf");
+}
+
+  //fetch all the documents
   const fetchAllDocuments = async () => {
   try {
     const hashes = await contract.getDocument_hashes(); // Call the getter
@@ -288,13 +337,35 @@ function App() {
         backgroundColor: darkMode ? 'transparent' : 'transparent'}}>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5>Registered Documents</h5>
+        <input
+  type="text"
+  className="form-control mb-2 rounded-pill"
+  style={{
+        color: darkMode ? '#fff' : '#000',
+        border: '1px solid',
+        borderColor: darkMode ? '#fff' : '#000',
+        backgroundColor: darkMode ? 'transparent' : 'transparent'}}
+  placeholder="🔍 Search by hash or owner..."
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+/>
+        <button className="btn btn-outline-info rounded-pill mt-6"
+        title={' Download Ownership Report (PDF)'} 
+         onClick={downloadReport}>
+  📥
+</button>
         <button className="btn btn-outline-primary rounded-pill" onClick={fetchAllDocuments}>
           Show Documents
         </button>
       </div>
+    <div id='ownership-report'>
     <ul className="list-group">
   {documents?.length > 0 ? (
-    documents.map((doc, index) => (
+    documents
+  .filter((doc) =>
+    doc.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    doc.owner.toLowerCase().includes(searchQuery.toLowerCase())
+  ).map((doc, index) => (
       <li key={index} className="list-group-item"
         style={{
           color: darkMode ? '#fff' : '#000',
@@ -302,9 +373,17 @@ function App() {
           borderColor: darkMode ? '#fff' : '#000',
           backgroundColor: darkMode ? 'transparent' : 'transparent',
         }}>
-        <p><strong>Hash:</strong> {doc.hash}</p>
-        <p><strong>Owner:</strong> {doc.owner}</p>
-        <p><strong>Timestamp:</strong> {doc.timestamp}</p>
+        <p style={{color: 'grey'}}><strong>Hash:</strong> {doc.hash}
+        <button
+      className="btn btn-sm btn-outline-secondary ms-2 rounded-pill"
+      onClick={() => navigator.clipboard.writeText(doc.hash)}
+      title="Copy to clipboard"
+    >
+       📋
+    </button>
+        </p>
+        <p style={{color: 'grey'}}><strong>Owner:</strong> {doc.owner}</p>
+        <p style={{color: 'grey'}}><strong>Timestamp:</strong> {doc.timestamp}</p>
         {doc.ipfsHash && (
           <a
             href={doc.ipfsHash}
@@ -329,6 +408,7 @@ function App() {
     </li>
   )}
 </ul>
+</div>
 
   </div>
   <Analytics />

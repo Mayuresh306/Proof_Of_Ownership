@@ -12,6 +12,8 @@
     "browserify": "^17.0.1",
     "crypto-browserify": "^3.12.1",
     "ethers": "^6.13.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
     "nft.storage": "^7.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
