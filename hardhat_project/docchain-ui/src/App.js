@@ -1,5 +1,5 @@
 import React , { useState , useEffect } from 'react';
-import {ethers} from 'ethers';
+import {ethers, Signature} from 'ethers';
 import './App.css';
 import crypto, { constants } from 'crypto-browserify';  //for sha256 hashing in browser
 import { Buffer } from 'buffer';
@@ -9,7 +9,14 @@ import Login from './Login';
 import { uploadToIPFS } from './utils/uploadToipfs.js';
 import { Analytics } from '@vercel/analytics/react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { hash } from 'crypto';
+import { encryptFile, getAESKey } from './utils/encryptfile.js';
+import { getDecryptionMetadata } from './utils/api.js';
+import { decryptAESKey } from './utils/decrypt.js';
+import { fetchAndDecryptFile } from './utils/fetchanddecrypt.js';
+import storeMetadata from './utils/api.js';
 
 window.Buffer = Buffer;
 window.process = process;
@@ -29,7 +36,8 @@ function App() {
   const [IpfsUrl , setIpfsUrl] = useState(null);
   const [registeredDocs, setRegisteredDocs] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-
+  const [loading, setLoading] = useState(false);
+  const [encryptedKey , setEncryptedKey] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -39,25 +47,27 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("user");
     setUser(null);
+    toast.success("Logged out!")
   };
 
   useEffect(() => {
     document.body.className = darkMode ? 'bg-dark text-light' : 'bg-light text-dark';
   }, [darkMode]);
 
+  // download report 
   const downloadReport = async () => {
     const pdf = new jsPDF();
     const pdfWidth = pdf.internal.pageSize.getWidth();
     let y = 20;
 
      // Title
-  pdf.setFontSize(18);
-  pdf.text(" Proof of Ownership Report", 10, y);
+  pdf.setFontSize(24);
+  pdf.text(" Proof of Ownership Report", 60, y);
   y += 10;
 
   // Date
   pdf.setFontSize(10);
-  pdf.text(`Generated on: ${new Date().toLocaleString()}`, 10, y);
+  pdf.text(`Generated on: ${new Date().toLocaleString()}`, 150, y);
   y += 10;
 
   // Divider
@@ -86,13 +96,14 @@ function App() {
 
   // Footer
   pdf.setFontSize(10);
-  pdf.text("© 2025 Proof of Ownership DApp", 10, 290);
+  pdf.text("© 2025 Proof of Ownership DApp", 10, 295);
 
   pdf.save("ownership_report.pdf");
-}
+  }
 
   //fetch all the documents
   const fetchAllDocuments = async () => {
+    setLoading(true);
   try {
     const hashes = await contract.getDocument_hashes(); // Call the getter
     const documentData = await Promise.all(
@@ -116,11 +127,13 @@ function App() {
     console.error("Failed to fetch documents:", error);
     setDocuments([]);
   }
+  setLoading(false);
 };
 
 
     // Connect Wallet
   const connectWallet = async () => {
+    setLoading(true);
     if (window.ethereum) {
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
@@ -135,20 +148,21 @@ function App() {
         );
         setContract(contractInstance);
         fetchAllDocuments(contractInstance);
-        alert("Wallet connected successfully!");
+        toast.success("Wallet connected successfully!");
       } catch (err) {
-        alert("Wallet connection failed: " + err.message);
+        toast.error("Wallet connection failed: " + err.message);
       }
     } else {
-      alert("MetaMask is not installed");
+      toast.warning("⚠️ MetaMask is not installed");
     }
+    setLoading(false);
   };
 
   // wallet disconnects
   const disconnectWallet = () => {
     setWalletaddress("");  // Clear address
     setContract("");       // Clear contract instance
-    alert("🔌 Wallet disconnected");
+    toast.success("🔌 Wallet disconnected");
 };
 
 
@@ -173,22 +187,40 @@ function App() {
   // smart contract functions interaction
   // Register document on blockchain
   const registerDocument = async () => {
-    if (!filehash) return alert("select a file first!");
-    if (!contract) return alert("Connect wallet First!");
-    if (!Selectedfile) return alert("No file selected!");
+    if (!filehash) return toast.warning("select a file!");
+    if (!contract) return toast.warning("Connect wallet!");
+    if (!Selectedfile) return toast.warning("No file selected!");
 
     const confirm = window.confirm(
     "⚠️⚠️ NOTE ⚠️⚠️\nAre you sure you want to register this document?\nThis will upload the file to IPFS and record it on the blockchain. You cannot undo this."
     );
 
-    if (!confirm) return; // Stop if user cancels
+    if (!confirm) return; // Stops if user cancels
+    setLoading(true);
     try {
-      const ipfsHash = await uploadToIPFS(Selectedfile);
+      const keyHex = await getAESKey();
+      const { encryptedBlob, iv } = await encryptFile(Selectedfile, keyHex);
+      const formData = new FormData();
+      formData.append("file", encryptedBlob, `encrypted_${Selectedfile.name}`);
+      formData.append("metadata", JSON.stringify({ iv }));
+      const ipfsHash = await uploadToIPFS(formData);
+      setEncryptedKey(iv);
       setIpfsUrl(ipfsHash);
 
       const tx = await contract.DocumentRegister(filehash , ipfsHash);
       await tx.wait();
-      alert("✅ Document Registered Successfully!");
+      toast.success("Document Registered Successfully!");
+      setLoading(false);
+      if (tx) {
+        const documentData = {
+        walletAddress: walletAddress,
+        fileName: Selectedfile.name,
+        ipfsHash: ipfsHash,
+        encryptedKey: JSON.stringify(iv)
+      };
+        const result = await storeMetadata(documentData);
+        return result;
+      }
 
       setDocuments((prev) => [
       ...prev,
@@ -199,28 +231,41 @@ function App() {
         ipfsUrl : ipfsHash,
       },
     ]);
-      // setfilehash("");
-      // setfilename("");
       setSelectedFile(null);
       fetchAllDocuments(contract);
     } catch (err) {
-      alert("❌ Error!!: " + (err.reason || err.message));
+      toast.error("❌ Error!!: " + (err.reason || err.message));
     }
   };
 
   // Verify document ownership
   const verifydocument = async () => {
-    if (!filehash) return alert("select a file first!");
-    if (!contract) return alert("Connect wallet First!");
+    if (!filehash) return toast.warning("select a file first!");
+    if (!contract) return toast.warning("Connect wallet First!");
     try {
       const result = await contract.VerifyDocument(filehash);
       const owner = result[0];
       const timestamp = new Date(Number(result[1]) * 1000).toLocaleString();
-      alert(`📄 Owner: ${owner}\n⏱️ Timestamp: ${timestamp}`);
+      const hash  = filehash;
+      alert(`#️⃣ Hash: ${hash}\n📄 Owner: ${owner}\n⏱️ Timestamp: ${timestamp}`);
     } catch (err) {
-      alert("❌ Verification failed: " + (err.reason || err.message));
+      toast.error("❌ Verification failed: " + (err.reason || err.message));
     }
   };
+
+  function DecryptButton({ walletAddress, fileName }) {
+  const handleDecrypt = async () => {
+    try {
+      const { encryptedKey, ipfsHash } = await getDecryptionMetadata(walletAddress, fileName);
+      const aesKey = await decryptAESKey(encryptedKey, walletAddress);
+      const decryptedText = await fetchAndDecryptFile(ipfsHash, aesKey);
+      console.log("Decrypted Content:", decryptedText);
+      alert(decryptedText);
+    } catch (err) {
+      console.error("Decryption failed:", err);
+    }
+  }
+};
 
     if (!user) return <Login onLogin={setUser} />;
 
@@ -260,6 +305,15 @@ function App() {
       </p>
     </div>
 
+    {loading && (
+  <div className="text-center my-3">
+    <div className="spinner-border text-primary" role="status">
+      <span className="visually-hidden">Loading...</span>
+    </div>
+  </div>
+)}
+
+
   {/* Connect Wallet */}
     <div className={"fw-bold text-center mb-4"}>
    {walletAddress ? (
@@ -281,7 +335,7 @@ function App() {
     </div>  
 
     {/* Upload Section */}
-    <div className={"card p-4 shadow mb-4 ${darkMode ? 'bg-secondary text-dark' : 'bg-light'}"}
+    <div className={"fileInput card p-4 shadow mb-4 ${darkMode ? 'bg-secondary text-dark' : 'bg-light'}"}
       style={{
         color: darkMode ? '#fff' : '#000',
         border: '1px solid',
@@ -289,8 +343,8 @@ function App() {
         backgroundColor: darkMode ? 'transparent' : 'transparent'}}>
       <h5 className="mb-3 ">Register Document</h5>
 
-      <div className="mb-3">
-        <input type="file" className="form-control"
+      <div className="fileInput mb-3">
+        <input type="file" className="fileInput form-control"
         style={{
         color: darkMode ? '#fff' : '#000',
         border: '1px solid',
@@ -300,7 +354,7 @@ function App() {
       </div>
 
       <button className="btn btn-primary mb-3 rounded-pill" onClick={registerDocument}>
-        Register Document
+        Register the Document
       </button>
 
       {filehash && (
@@ -351,9 +405,10 @@ function App() {
 />
         <button className="btn btn-outline-info rounded-pill mt-6"
         title={' Download Ownership Report (PDF)'} 
-         onClick={downloadReport}>
-  📥
+         onClick={!walletAddress ? (null) : downloadReport}>
+   📥
 </button>
+        <button onClick={DecryptButton}>Decrypt Files</button>
         <button className="btn btn-outline-primary rounded-pill" onClick={fetchAllDocuments}>
           Show Documents
         </button>
@@ -376,10 +431,12 @@ function App() {
         <p style={{color: 'grey'}}><strong>Hash:</strong> {doc.hash}
         <button
       className="btn btn-sm btn-outline-secondary ms-2 rounded-pill"
-      onClick={() => navigator.clipboard.writeText(doc.hash)}
+      onClick={() => {navigator.clipboard.writeText(doc.hash)
+        toast.success("copied to clipboard")
+      }}
       title="Copy to clipboard"
     >
-       📋
+       copy
     </button>
         </p>
         <p style={{color: 'grey'}}><strong>Owner:</strong> {doc.owner}</p>
@@ -408,11 +465,13 @@ function App() {
     </li>
   )}
 </ul>
+<ToastContainer position="top-right" autoClose={3000} />
 </div>
 
   </div>
   <Analytics />
   </div>
+
 );
 }
 
