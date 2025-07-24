@@ -14,7 +14,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { hash } from 'crypto';
 import { encryptFile, getAESKey } from './utils/encryptfile.js';
 import { getDecryptionMetadata } from './utils/api.js';
-import { decryptAESKey } from './utils/decrypt.js';
+import { decryptFile } from './utils/decrypt.js';
 import { fetchAndDecryptFile } from './utils/fetchanddecrypt.js';
 import storeMetadata from './utils/api.js';
 
@@ -38,6 +38,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [encryptedKey , setEncryptedKey] = useState('');
+  const [aesKey , setAesKey] = useState("");
+  const [EncryptedBlob , setEncryptedBlob] = useState([]);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -206,6 +208,8 @@ function App() {
       const ipfsHash = await uploadToIPFS(formData);
       setEncryptedKey(iv);
       setIpfsUrl(ipfsHash);
+      setAesKey(keyHex);
+      setEncryptedBlob(encryptedBlob);
 
       const tx = await contract.DocumentRegister(filehash , ipfsHash);
       await tx.wait();
@@ -233,6 +237,9 @@ function App() {
     ]);
       setSelectedFile(null);
       fetchAllDocuments(contract);
+
+      
+
     } catch (err) {
       toast.error("❌ Error!!: " + (err.reason || err.message));
     }
@@ -253,19 +260,14 @@ function App() {
     }
   };
 
-  function DecryptButton({ walletAddress, fileName }) {
-  const handleDecrypt = async () => {
-    try {
-      const { encryptedKey, ipfsHash } = await getDecryptionMetadata(walletAddress, fileName);
-      const aesKey = await decryptAESKey(encryptedKey, walletAddress);
-      const decryptedText = await fetchAndDecryptFile(ipfsHash, aesKey);
-      console.log("Decrypted Content:", decryptedText);
-      alert(decryptedText);
-    } catch (err) {
-      console.error("Decryption failed:", err);
-    }
+  const DecryptedFile = async () => {
+    const decryptedBlob = await decryptFile(EncryptedBlob, encryptedKey, aesKey);
+    const url = URL.createObjectURL(decryptedBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'decrypted_' + filename;
+    link.click();
   }
-};
 
     if (!user) return <Login onLogin={setUser} />;
 
@@ -408,7 +410,9 @@ function App() {
          onClick={!walletAddress ? (null) : downloadReport}>
    📥
 </button>
-        <button onClick={DecryptButton}>Decrypt Files</button>
+        <button onClick={DecryptedFile}>
+          decrypt the file
+        </button>
         <button className="btn btn-outline-primary rounded-pill" onClick={fetchAllDocuments}>
           Show Documents
         </button>
