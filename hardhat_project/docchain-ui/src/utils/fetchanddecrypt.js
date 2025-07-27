@@ -1,3 +1,6 @@
+import CryptoJS from "crypto-js";
+
+
 export async function fetchAndDecryptFile(ipfsHash, aesKey) {
   const res = await fetch(`https://gateway.pinata.cloud/ipfs/${ipfsHash}`);
   const encryptedData = await res.arrayBuffer();
