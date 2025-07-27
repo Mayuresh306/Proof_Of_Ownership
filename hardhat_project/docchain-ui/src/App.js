@@ -39,7 +39,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [encryptedKey , setEncryptedKey] = useState('');
   const [aesKey , setAesKey] = useState("");
-  const [EncryptedBlob , setEncryptedBlob] = useState([]);
+  const [EncryptedBlob , setEncryptedBlob] = useState("");
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -209,7 +209,7 @@ function App() {
       setEncryptedKey(iv);
       setIpfsUrl(ipfsHash);
       setAesKey(keyHex);
-      setEncryptedBlob(encryptedBlob);
+      setEncryptedBlob(formData);
 
       const tx = await contract.DocumentRegister(filehash , ipfsHash);
       await tx.wait();
